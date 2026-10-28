@@ -4,7 +4,8 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Memory, MemoryPatch, Story } from "./types";
 
-export const DATA_DIR = path.join(process.cwd(), "data");
+// Vercel's filesystem is read-only except /tmp, which is per-instance and temporary.
+export const DATA_DIR = process.env.LIFEWEAVER_DATA_DIR || (process.env.VERCEL ? "/tmp/lifeweaver" : path.join(process.cwd(), "data"));
 export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 
 const g = globalThis as unknown as { __lwdb?: DatabaseSync };
