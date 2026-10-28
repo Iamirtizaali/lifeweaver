@@ -9,6 +9,9 @@ import * as memories from "@/server/api/memories/route";
 import * as exportStory from "@/server/api/stories/[id]/export/route";
 import * as story from "@/server/api/stories/[id]/route";
 import * as stories from "@/server/api/stories/route";
+import fs from "node:fs/promises";
+import { cloudEnabled, pullDb, pushDb } from "@/lib/cloud";
+import { closeDb, DATA_DIR, DB_FILE } from "@/lib/db";
 import { fail } from "@/lib/http";
 
 export const maxDuration = 300;
@@ -33,11 +36,39 @@ function resolve(path: string[]): { mod: Module; id?: string } | null {
   return null;
 }
 
+// Serialize requests on an instance so a pulled DB snapshot isn't swapped mid-request.
+let queue: Promise<unknown> = Promise.resolve();
+
+async function withHostedDb<T>(write: boolean, run: () => Promise<T>): Promise<T> {
+  if (!cloudEnabled()) return run();
+  const job = queue.then(async () => {
+    const snapshot = await pullDb();
+    closeDb();
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    if (snapshot) await fs.writeFile(DB_FILE(), snapshot);
+    else await fs.rm(DB_FILE(), { force: true });
+    const result = await run();
+    if (write) {
+      closeDb(); // flush and release the file before uploading it
+      await pushDb(await fs.readFile(DB_FILE()));
+    }
+    return result;
+  });
+  queue = job.catch(() => undefined);
+  return job;
+}
+
 async function dispatch(method: keyof Module, req: Request, ctx: { params: Promise<{ path: string[] }> }) {
   const r = resolve((await ctx.params).path);
   const handler = r?.mod[method];
   if (!r || !handler) return fail(404, "not_found", "Unknown API route.");
-  return handler(req, { params: Promise.resolve({ id: r.id ?? "" }) });
+  if (r.mod === health) return handler(req, { params: Promise.resolve({ id: "" }) });
+  try {
+    return await withHostedDb(method !== "GET", async () => handler(req, { params: Promise.resolve({ id: r.id ?? "" }) }));
+  } catch (e) {
+    console.error("[lifeweaver] storage sync failed:", (e as Error)?.message);
+    return fail(503, "storage_error", "Could not reach storage. Please try again.");
+  }
 }
 
 type Ctx = { params: Promise<{ path: string[] }> };

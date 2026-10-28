@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import fs from "node:fs/promises";
 import { z } from "zod";
 import { getMemoriesByIds, getMemoryRow, setAnalysis } from "@/lib/db";
-import { uploadPath } from "@/lib/files";
+import { readUpload } from "@/lib/files";
 import { analyzePhoto, gemmaConfig, GemmaError } from "@/lib/gemma";
 import { fail, handleError } from "@/lib/http";
 import { LIMITS } from "@/lib/types";
@@ -28,7 +27,7 @@ export async function POST(req: Request) {
         try {
           const row = getMemoryRow(m.id);
           if (!row?.analysis_file) throw new Error("analysis copy missing");
-          const b64 = (await fs.readFile(uploadPath(row.analysis_file as string))).toString("base64");
+          const b64 = (await readUpload(row.analysis_file as string)).toString("base64");
           const a = await analyzePhoto(b64, null);
           setAnalysis(m.id, { status: "ready", description: a.description, tags: a.tags, question: a.question ?? null, error: null });
         } catch (e) {

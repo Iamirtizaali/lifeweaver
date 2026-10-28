@@ -13,9 +13,9 @@ const g = globalThis as unknown as { __lwdb?: DatabaseSync };
 export function db(): DatabaseSync {
   if (g.__lwdb) return g.__lwdb;
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  const d = new DatabaseSync(path.join(DATA_DIR, "lifeweaver.db"));
+  const d = new DatabaseSync(DB_FILE());
   d.exec(`
-    PRAGMA journal_mode = WAL;
+    PRAGMA journal_mode = ${process.env.VERCEL ? "DELETE" : "WAL"};
     CREATE TABLE IF NOT EXISTS memories (
       id TEXT PRIMARY KEY,
       kind TEXT NOT NULL,
@@ -53,6 +53,14 @@ export function db(): DatabaseSync {
   }
   g.__lwdb = d;
   return d;
+}
+
+export const DB_FILE = () => path.join(DATA_DIR, "lifeweaver.db");
+
+/** Close the handle so the DB file can be replaced (hosted sync) and reopened on next use. */
+export function closeDb() {
+  g.__lwdb?.close();
+  g.__lwdb = undefined;
 }
 
 type Row = Record<string, unknown>;
