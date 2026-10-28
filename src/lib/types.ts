@@ -1,6 +1,6 @@
 // Shared API types. Owned by the lead session; frontend imports, never edits.
 
-export type MemoryKind = "photo" | "text";
+export type MemoryKind = "photo" | "text" | "chat"; // chat = uploaded/pasted WhatsApp-style text
 export type MemoryStatus = "uploaded" | "processing" | "ready" | "failed";
 
 export interface Memory {
@@ -48,6 +48,16 @@ export interface StorySection {
   imageIds: string[]; // photo memory ids to show with it
 }
 
+export interface TimelineEvent {
+  date: string | null; // YYYY-MM-DD from a source; null = undated (never invented)
+  label: string; // short event title
+  description: string;
+  excerpt: string | null; // short verbatim quote from a chat/note source, if any
+  sourceIds: string[];
+  imageIds: string[];
+}
+
+export type StoryType = "trip" | "friendship" | "family" | "custom";
 export type StoryStatus = "current" | "outdated" | "needs_review";
 export type StoryTone = "warm" | "plain" | "reflective";
 export type StoryLength = "short" | "medium";
@@ -59,7 +69,10 @@ export interface Story {
   theme: string;
   tone: StoryTone;
   length: StoryLength;
+  storyType: StoryType;
+  instruction: string | null;
   sections: StorySection[];
+  timeline: TimelineEvent[]; // chronological; undated events last
   sourceIds: string[];
   status: StoryStatus; // outdated = a source was edited; needs_review = a source was deleted
   model: string; // e.g. gemma-4-31b-it
@@ -83,4 +96,8 @@ export const LIMITS = {
   maxNoteChars: 4000,
   maxThemeChars: 200,
   maxStorySources: 12,
+  maxChatFiles: 3,
+  maxChatBytes: 1024 * 1024, // per .txt file
+  chatCharsToModel: 8000, // per chat, most recent messages kept
+  maxInstructionChars: 300,
 } as const;

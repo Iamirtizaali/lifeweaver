@@ -38,9 +38,18 @@ export function db(): DatabaseSync {
       sections TEXT NOT NULL, source_ids TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'current',
       model TEXT NOT NULL,
+      story_type TEXT NOT NULL DEFAULT 'custom',
+      instruction TEXT,
+      timeline TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
   `);
+  // Columns added after the first schema; ignore "duplicate column" on existing DBs.
+  for (const col of ["story_type TEXT NOT NULL DEFAULT 'custom'", "instruction TEXT", "timeline TEXT NOT NULL DEFAULT '[]'"]) {
+    try {
+      d.exec(`ALTER TABLE stories ADD COLUMN ${col}`);
+    } catch {}
+  }
   g.__lwdb = d;
   return d;
 }
@@ -85,7 +94,7 @@ export function toMemory(r: Row): Memory {
 }
 
 export function insertMemory(m: {
-  kind: "photo" | "text";
+  kind: Memory["kind"];
   title: string | null;
   note: string | null;
   date: string | null;
@@ -106,7 +115,7 @@ export function insertMemory(m: {
     )
     .run(
       id, m.kind, m.title, m.note, m.date, JSON.stringify(m.people), m.location,
-      m.kind === "text" ? "ready" : "uploaded",
+      m.kind === "photo" ? "uploaded" : "ready",
       m.originalFile ?? null, m.analysisFile ?? null, m.mime ?? null, t, t
     );
   return getMemory(id)!;
@@ -188,7 +197,10 @@ function toStory(r: Row): Story {
     theme: r.theme as string,
     tone: r.tone as Story["tone"],
     length: r.length as Story["length"],
+    storyType: (r.story_type as Story["storyType"]) ?? "custom",
+    instruction: (r.instruction as string) ?? null,
     sections: JSON.parse(r.sections as string),
+    timeline: JSON.parse((r.timeline as string) || "[]"),
     sourceIds: JSON.parse(r.source_ids as string),
     status: r.status as Story["status"],
     model: r.model as string,
@@ -202,10 +214,12 @@ export function insertStory(s: Omit<Story, "id" | "createdAt" | "updatedAt" | "s
   const t = now();
   db()
     .prepare(
-      `INSERT INTO stories (id, title, intro, theme, tone, length, sections, source_ids, status, model, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?)`
+      `INSERT INTO stories (id, title, intro, theme, tone, length, sections, source_ids, status, model,
+        story_type, instruction, timeline, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'current', ?, ?, ?, ?, ?, ?)`
     )
-    .run(id, s.title, s.intro, s.theme, s.tone, s.length, JSON.stringify(s.sections), JSON.stringify(s.sourceIds), s.model, t, t);
+    .run(id, s.title, s.intro, s.theme, s.tone, s.length, JSON.stringify(s.sections), JSON.stringify(s.sourceIds), s.model,
+      s.storyType, s.instruction, JSON.stringify(s.timeline), t, t);
   return getStory(id)!;
 }
 
@@ -218,12 +232,15 @@ export function listStories(): Story[] {
   return (db().prepare("SELECT * FROM stories ORDER BY created_at DESC").all() as Row[]).map(toStory);
 }
 
-export function patchStory(id: string, p: { title?: string; intro?: string; sections?: Story["sections"] }): Story | null {
+export function patchStory(
+  id: string,
+  p: { title?: string; intro?: string; sections?: Story["sections"]; timeline?: Story["timeline"] }
+): Story | null {
   const cur = getStory(id);
   if (!cur) return null;
   db()
-    .prepare("UPDATE stories SET title = ?, intro = ?, sections = ?, updated_at = ? WHERE id = ?")
-    .run(p.title ?? cur.title, p.intro ?? cur.intro, JSON.stringify(p.sections ?? cur.sections), now(), id);
+    .prepare("UPDATE stories SET title = ?, intro = ?, sections = ?, timeline = ?, updated_at = ? WHERE id = ?")
+    .run(p.title ?? cur.title, p.intro ?? cur.intro, JSON.stringify(p.sections ?? cur.sections), JSON.stringify(p.timeline ?? cur.timeline), now(), id);
   return getStory(id);
 }
 

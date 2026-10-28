@@ -29,19 +29,26 @@ Types: `import type { Memory, Story, ... } from "@/lib/types"` and `LIMITS` for 
 |---|---|---|
 | `GET /api/health` | — | `{ gemmaConfigured: boolean, model: string \| null }` |
 | `GET /api/memories` | — | `{ memories: Memory[] }` newest first |
-| `POST /api/memories` | **multipart**: `files` (0–10 × JPEG/PNG/WebP ≤10 MB), `note`, `title`, `date` (YYYY-MM-DD), `people` (comma-separated), `location`. Needs ≥1 file or a note. | `201 { memories: Memory[] }` — one photo memory per file (shares title/date/people/location), plus one text memory if `note` given. Status `uploaded`. |
+| `POST /api/memories` | **multipart**: `files` (0–10 × JPEG/PNG/WebP ≤10 MB), `chats` (0–3 × `.txt` WhatsApp export ≤1 MB), `chat` (pasted conversation text), `note` (written memory), `title`, `date` (YYYY-MM-DD), `people` (comma-separated), `location`. Needs ≥1 of these. | `201 { memories: Memory[] }` — one `photo` memory per image (status `uploaded`), one `chat` memory per chat (date = first message date, people = senders), one `text` memory for `note`. |
 | `PATCH /api/memories/:id` | `MemoryPatch` | `{ memory: Memory }` |
 | `DELETE /api/memories/:id` | — | `{ ok: true }` (removes files; dependent stories → `needs_review`) |
 | `POST /api/memories/analyze` | `{ ids: string[], consent: true }` | `{ memories: Memory[] }` — each `ready` or `failed` (with `error`). Excluded/text memories are skipped and returned unchanged. Slow: ~5–20 s per photo, show progress. Re-calling on a `failed` id retries in place. |
 | `GET /api/files/:id?v=analysis\|original` | — | image bytes (use `memory.thumbUrl` / `memory.imageUrl`) |
-| `POST /api/stories` | `{ memoryIds: string[], theme: string, tone: "warm"\|"plain"\|"reflective", length: "short"\|"medium" }` | `201 { story: Story }` — only included, non-failed memories are used; 400 if none eligible |
+| `POST /api/stories` | `{ memoryIds: string[], storyType: "trip"\|"friendship"\|"family"\|"custom", theme?: string (title idea), instruction?: string ≤300, tone?: "warm"\|"plain"\|"reflective", length?: "short"\|"medium" }` | `201 { story: Story }` with `sections[]` **and** `timeline[]` (chronological, `date: null` = undated, `excerpt` verbatim or null). Only included memories; photos must be analyzed (`ready`) first. ~10–20 s. |
 | `GET /api/stories` | — | `{ stories: Story[] }` |
 | `GET /api/stories/:id` | — | `{ story: Story, sources: Memory[] }` (sources = memories still existing) |
-| `PATCH /api/stories/:id` | `{ title?, intro?, sections? }` | `{ story: Story }` |
+| `PATCH /api/stories/:id` | `{ title?, intro?, sections?, timeline? }` | `{ story: Story }` |
 | `DELETE /api/stories/:id` | — | `{ ok: true }` |
 | `GET /api/stories/:id/export?format=md\|json` | — | file download |
 
 Error codes to handle: `no_api_key` (503, show setup message), `model_error` (502, retry), `invalid_input` (400), `too_large` (413), `unsupported_type` (415), `not_found` (404).
+
+## Single-page flow (scope update)
+1. `POST /api/memories` with photos + chats + optional note → memory ids.
+2. User confirms consent → `POST /api/memories/analyze { ids: photoIds, consent: true }` (skip if no photos). Show per-photo progress.
+3. `POST /api/stories { memoryIds: allIds, storyType, theme, instruction }`.
+4. Render Story / Timeline toggle; sources via `GET /api/stories/:id` (`sources` array). Print: link to `/stories/:id/print`.
+Verified live: photo analysis ≈5 s, story ≈15 s with `gemma-4-26b-a4b-it`.
 
 ## UX rules that matter
 - Before analysis show: "Selected photos are sent to Google's Gemini API to run Gemma 4." Send `consent: true` only after the user confirms.

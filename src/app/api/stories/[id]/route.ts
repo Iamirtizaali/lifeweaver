@@ -18,6 +18,18 @@ const Patch = z
       )
       .min(1)
       .max(12),
+    timeline: z
+      .array(
+        z.object({
+          date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+          label: z.string().trim().min(1).max(120),
+          description: z.string().trim().max(1000),
+          excerpt: z.string().nullable(),
+          sourceIds: z.array(z.string()),
+          imageIds: z.array(z.string()),
+        })
+      )
+      .max(30),
   })
   .partial()
   .strict();
@@ -34,15 +46,15 @@ export async function PATCH(req: Request, ctx: IdCtx) {
     const cur = getStory(id);
     if (!cur) return fail(404, "not_found", "Story not found.");
     const p = Patch.parse(await req.json());
-    if (p.sections) {
-      // Edits may not introduce sources the story was not generated from.
-      const allowed = new Set(cur.sourceIds);
-      p.sections = p.sections.map((s) => ({
-        ...s,
-        sourceIds: s.sourceIds.filter((x) => allowed.has(x)),
-        imageIds: s.imageIds.filter((x) => allowed.has(x)),
-      }));
-    }
+    // Edits may not introduce sources the story was not generated from.
+    const allowed = new Set(cur.sourceIds);
+    const clean = <T extends { sourceIds: string[]; imageIds: string[] }>(x: T): T => ({
+      ...x,
+      sourceIds: x.sourceIds.filter((i) => allowed.has(i)),
+      imageIds: x.imageIds.filter((i) => allowed.has(i)),
+    });
+    if (p.sections) p.sections = p.sections.map(clean);
+    if (p.timeline) p.timeline = p.timeline.map(clean);
     return NextResponse.json({ story: patchStory(id, p) });
   } catch (e) {
     return handleError(e);
