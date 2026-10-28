@@ -6,6 +6,7 @@ import type { Memory, Story } from "@/lib/types";
 import p from "./StoryPrint.module.css";
 import { api, describeError } from "./api";
 import { PrinterIcon } from "./icons";
+import { buildTimeline } from "./timeline";
 import { formatDate, memoryAlt, memoryDate, memoryLabel, paragraphs, shownDescription } from "./utils";
 
 export default function StoryPrintView({ storyId }: { storyId: string }) {
@@ -92,6 +93,19 @@ export default function StoryPrintView({ storyId }: { storyId: string }) {
             </section>
           );
         })}
+
+        <section className={p.section}>
+          <h2 className={p.heading}>Timeline</h2>
+          <ol className={p.timeline}>
+            {buildTimeline(story, byId).map((ev) => (
+              <li key={ev.memory.id}>
+                <span className={p.tlDate}>{ev.date ? formatDate(ev.date) : "Undated"}</span>
+                <strong>{ev.heading}</strong>
+                {ev.excerpt && <span className={p.tlText}>{ev.excerpt}</span>}
+              </li>
+            ))}
+          </ol>
+        </section>
 
         <section className={p.sources}>
           <h2 className={p.heading}>Sources</h2>
