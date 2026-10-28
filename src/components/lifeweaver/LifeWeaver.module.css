@@ -22,7 +22,8 @@
   --lw-warn: #f3cf86;
   --lw-radius: 20px;
   --lw-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --lw-sans: "DM Sans", var(--font-sans-stack, system-ui, sans-serif);
+  /* --font-dm-sans comes from next/font in the root layout when provided. */
+  --lw-sans: var(--font-dm-sans, "DM Sans"), var(--font-sans-stack, system-ui, sans-serif);
   --lw-serif: var(--font-serif-stack, Georgia, serif);
 
   position: relative;
