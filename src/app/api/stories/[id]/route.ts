@@ -37,7 +37,8 @@ const Patch = z
 export async function GET(_req: Request, ctx: IdCtx) {
   const story = getStory((await ctx.params).id);
   if (!story) return fail(404, "not_found", "Story not found.");
-  return NextResponse.json({ story, sources: getMemoriesByIds(story.sourceIds) });
+  const ids = new Set([...story.sourceIds, ...story.sections.flatMap((s) => s.imageIds), ...story.timeline.flatMap((e) => e.imageIds)]);
+  return NextResponse.json({ story, sources: getMemoriesByIds([...ids]) });
 }
 
 export async function PATCH(req: Request, ctx: IdCtx) {

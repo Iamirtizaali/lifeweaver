@@ -60,7 +60,11 @@ export async function POST(req: Request) {
     const keep = (ids: string[], set: Set<string>) => [...new Set(ids.filter((id) => set.has(id)))];
 
     const sections: StorySection[] = out.sections
-      .map((s) => ({ heading: s.heading, text: s.text, sourceIds: keep(s.sourceIds, allowed), imageIds: keep(s.imageIds, photos) }))
+      .map((s) => {
+        const imageIds = keep(s.imageIds, photos);
+        // A photo shown in a section is one of its sources.
+        return { heading: s.heading, text: s.text, sourceIds: keep([...s.sourceIds, ...imageIds], allowed), imageIds };
+      })
       .filter((s) => s.sourceIds.length > 0);
     if (!sections.length) return fail(502, "model_error", "Gemma's story did not reference any of the selected memories. Try again.");
 
@@ -69,7 +73,7 @@ export async function POST(req: Request) {
     const chatText = eligible.map((m) => m.note ?? "").join("\n");
     const timeline: TimelineEvent[] = out.timeline
       .map((e) => {
-        const sourceIds = keep(e.sourceIds, allowed);
+        const sourceIds = keep([...e.sourceIds, ...e.imageIds], allowed);
         const date = e.date && ISO.test(e.date) && sourceIds.some((id) => sourceDates.get(id)?.date === e.date || (sourceDates.get(id)?.note ?? "").includes(e.date!)) ? e.date : null;
         const excerpt = e.excerpt && chatText.includes(e.excerpt.trim()) ? e.excerpt.trim() : null; // verbatim only
         return { date, label: e.label, description: e.description, excerpt, sourceIds, imageIds: keep(e.imageIds, photos) };
