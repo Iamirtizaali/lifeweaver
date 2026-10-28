@@ -6,7 +6,6 @@ import { gemmaConfig, writeStory, type StorySource } from "@/lib/gemma";
 import { fail, handleError } from "@/lib/http";
 import { LIMITS, type StorySection, type TimelineEvent } from "@/lib/types";
 
-export const maxDuration = 300;
 
 const Body = z.object({
   memoryIds: z.array(z.string().uuid()).min(1).max(LIMITS.maxStorySources),

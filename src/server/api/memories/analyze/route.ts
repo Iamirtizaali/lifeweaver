@@ -7,7 +7,6 @@ import { analyzePhoto, gemmaConfig, GemmaError } from "@/lib/gemma";
 import { fail, handleError } from "@/lib/http";
 import { LIMITS } from "@/lib/types";
 
-export const maxDuration = 300;
 
 const Body = z.object({
   ids: z.array(z.string().uuid()).min(1).max(LIMITS.maxPhotosPerBatch * 3),
