@@ -50,3 +50,6 @@ next-env.d.ts
 # Claude Code worktrees for parallel sessions
 .claude/worktrees/
 .claude/launch.json
+
+.vercel
+.env*
