@@ -55,10 +55,10 @@ node --env-file=.env.local scripts/verify-gemma.mjs
 ```
 
 ## Storage & privacy
-- Single-user **local demo**. No accounts or auth — do not host it publicly as is.
+- Single-user demo. No accounts or auth: anyone with the URL can use the app and the configured Gemini quota.
 - Data lives in `./data/` (gitignored): SQLite DB, originals, analysis copies. Files are served only through `/api/files/:id`, never from `public/`.
 - Selected photos are sent to Google's Gemini API to run Gemma 4; the app asks before each analysis. Excluded memories are never sent.
-- On Vercel, the database and uploads live in `/tmp` of the running instance: fine for a live demo, but data is **temporary** and can disappear between requests or deploys. Durable hosting needs a real database and blob storage.
+- On Vercel, data persists in a **private Vercel Blob store**: the SQLite file is pulled before each API request and pushed after writes, and photos are written through to Blob (`src/lib/cloud.ts`). This suits a single-user demo; simultaneous writers can overwrite each other's changes, so a multi-user deployment needs a real database. Locally, `./data/` is used and Blob is never touched.
 
 ## Limitations
 - Manual imports only: photos and plain-text WhatsApp exports. No PDF, ZIP, audio, Google Photos or face recognition.
