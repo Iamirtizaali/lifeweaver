@@ -1,0 +1,19 @@
+import type { Metadata } from "next";
+import { Fraunces, Nunito_Sans } from "next/font/google";
+import "./globals.css";
+
+const serif = Fraunces({ subsets: ["latin"], variable: "--font-serif", display: "swap", axes: ["opsz"] });
+const sans = Nunito_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+
+export const metadata: Metadata = {
+  title: "LifeWeaver",
+  description: "Turn your photos and notes into a memory library and source-linked stories, written by Gemma 4.",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" className={`${serif.variable} ${sans.variable}`}>
+      <body>{children}</body>
+    </html>
+  );
+}
